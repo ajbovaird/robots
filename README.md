@@ -7,4 +7,4 @@ This is my go at the 'Robots' problem, which I've used as a kata to learn Elm.
 1. Install Elm -> [https://guide.elm-lang.org/install.html]
 2. Clone this repo.
 3. Run the 'elm-reactor' command line tool from the root directory
-4. Browse to [http://localhost:8000/robots.elm]
+4. Browse to http://localhost:8000/robots.elm
