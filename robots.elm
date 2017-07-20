@@ -42,7 +42,7 @@ origin : House
 origin = { x = 0, y = 0 }
 
 initialWorld : List Robot -> World
-initialWorld robots = [ (origin, robots, 1) ]
+initialWorld robots = [ (origin, robots, 1) ] -- HACK ALERT: requirement is for robot to deliver present when entering origin (suspect req, xref Monopoly rules on GO). Because # Robots defaults to 1, easiest to implement here, but generates a smell.
 
 moveUp : Move
 moveUp = { changeX = 0, changeY = 1  }
@@ -66,7 +66,7 @@ type alias Model =
     , robots : Robots
     , inputtedMoves : String
     , numberOfRobots : Int
-    , currentRobotPositions : RobotHouses
+    , currentRobotHouses : RobotHouses
     , remainingRobotMoves : RobotMoves
     , housesWithPresentsAboveThreshold : String
     , numberOfPresentsThreshold : Presents
@@ -83,7 +83,7 @@ initialModel =
     , robots = []
     , inputtedMoves = ""
     , numberOfRobots = 1
-    , currentRobotPositions = []
+    , currentRobotHouses = []
     , remainingRobotMoves = [] 
     , housesWithPresentsAboveThreshold = infinity
     , numberOfPresentsThreshold = 0
@@ -121,14 +121,14 @@ update msg model =
             ({ initialModel | inputtedMoves = input, numberOfRobots = model.numberOfRobots }, Cmd.none)
         RunSimulation ->
             let 
-                (robots, moves, updatedWorld, currentRobotPositions, updatedRemainingMoves, totalPresents) = runSimulation model
+                (robots, moves, updatedWorld, currentRobotHouses, updatedRemainingMoves, totalPresents) = runSimulation model
             in 
-                ( { model | world = updatedWorld, robots = robots, moves = moves, currentRobotPositions = currentRobotPositions, remainingRobotMoves = updatedRemainingMoves, totalPresentsDelivered = totalPresents, numberOfPresentsThreshold = 0, housesWithPresentsAboveThreshold = infinity }, Cmd.none)
+                ( { model | world = updatedWorld, robots = robots, moves = moves, currentRobotHouses = currentRobotHouses, remainingRobotMoves = updatedRemainingMoves, totalPresentsDelivered = totalPresents, numberOfPresentsThreshold = 0, housesWithPresentsAboveThreshold = infinity }, Cmd.none)
         Step ->
             let
-                (robots, moves, updatedWorld, currentRobotPositions, updatedRemainingMoves, totalPresents) = runStep model
+                (robots, moves, updatedWorld, currentRobotHouses, updatedRemainingMoves, totalPresents) = runStep model
             in
-                ( { model | world = updatedWorld, robots = robots, moves = moves, currentRobotPositions = currentRobotPositions, remainingRobotMoves = updatedRemainingMoves, totalPresentsDelivered = totalPresents, numberOfPresentsThreshold = 0, housesWithPresentsAboveThreshold = infinity }, Cmd.none)
+                ( { model | world = updatedWorld, robots = robots, moves = moves, currentRobotHouses = currentRobotHouses, remainingRobotMoves = updatedRemainingMoves, totalPresentsDelivered = totalPresents, numberOfPresentsThreshold = 0, housesWithPresentsAboveThreshold = infinity }, Cmd.none)
         Threshold input ->
             let 
                 n = parseIntFromString input
@@ -181,7 +181,7 @@ view model =
                             , th [] [ text "Location" ]
                         ]
                     ]
-                    , tbody [] (List.map robotRow model.currentRobotPositions)
+                    , tbody [] (List.map robotRow model.currentRobotHouses)
                     ]   
                 ]
             ]
@@ -357,10 +357,10 @@ runStep model =
             else
                 (model.robots, model.moves, model.world, model.remainingRobotMoves)
         
-        (updatedWorld, currentRobotPositions, updatedRemainingMoves, totalPresents) = 
+        (updatedWorld, currentRobotHouses, updatedRemainingMoves, totalPresents) = 
             case remainingMoves of
                     [] ->
-                        (world, model.currentRobotPositions, [], model.totalPresentsDelivered)
+                        (world, model.currentRobotHouses, [], model.totalPresentsDelivered)
                     ((currentRobot, currentMove) :: nextRobotMove :: rms) ->
                         let
                             (uw, crps, tps) = takeTurn world robots currentRobot currentMove []
@@ -372,7 +372,7 @@ runStep model =
                         in
                             (uw, crps, [], tps)
     in
-        (robots, moves, updatedWorld, currentRobotPositions, updatedRemainingMoves, totalPresents)
+        (robots, moves, updatedWorld, currentRobotHouses, updatedRemainingMoves, totalPresents)
 
 runSimulation : Model -> (Robots, Moves, World, RobotHouses, RobotMoves, Presents)
 runSimulation model =
@@ -380,11 +380,11 @@ runSimulation model =
         (robots, moves, world, robotMoves) = 
             initializeSimulation model.numberOfRobots model.inputtedMoves
         
-        (updatedWorld, currentRobotPositions, totalPresents) = 
+        (updatedWorld, currentRobotHouses, totalPresents) = 
             case robotMoves of
                 [] ->
-                    (world, model.currentRobotPositions, model.totalPresentsDelivered)
+                    (world, model.currentRobotHouses, model.totalPresentsDelivered)
                 ((robot, move) :: rms) ->
                     takeTurn world robots robot move rms
     in
-        (robots, moves, updatedWorld, currentRobotPositions, [], totalPresents)
+        (robots, moves, updatedWorld, currentRobotHouses, [], totalPresents)
