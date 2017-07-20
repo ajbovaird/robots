@@ -13,6 +13,7 @@ main =
         , subscriptions = subscriptions
     }
 
+-- TYPES
 type alias World = List PlaceInWorld 
 type alias PlaceInWorld = (House, List Robot, Presents)
 
@@ -59,6 +60,9 @@ moveLeft = { changeX = -1, changeY = 0  }
 undefinedMove : Move
 undefinedMove = { changeX = 0, changeY = 0 }
 
+infinity : String
+infinity = "∞"
+
 -- MODEL
 type alias Model = 
     { world : World
@@ -72,9 +76,6 @@ type alias Model =
     , numberOfPresentsThreshold : Presents
     , totalPresentsDelivered : Presents
 }
-
-infinity : String
-infinity = "∞"
 
 initialModel : Model
 initialModel =
@@ -97,7 +98,7 @@ init =
     in
         (model, Cmd.none)
 
--- Update
+-- UPDATE
 type Msg 
     = Robots String
     | Moves String
@@ -110,11 +111,7 @@ update msg model =
     case msg of
         Robots input ->
             let 
-                numberOfRobots = 
-                    if parseIntFromString input > 0 then
-                        parseIntFromString input
-                    else
-                        1
+                numberOfRobots = getNumberOfRobots input
             in
                 ({ initialModel | numberOfRobots = numberOfRobots, inputtedMoves = model.inputtedMoves }, Cmd.none)
         Moves input ->
@@ -131,16 +128,10 @@ update msg model =
                 ( { model | world = updatedWorld, robots = robots, moves = moves, currentRobotHouses = currentRobotHouses, remainingRobotMoves = updatedRemainingMoves, totalPresentsDelivered = totalPresents, numberOfPresentsThreshold = 0, housesWithPresentsAboveThreshold = infinity }, Cmd.none)
         Threshold input ->
             let 
-                n = parseIntFromString input
-                housesWithPresents = 
-                    if n == 0 then
-                        infinity
-                    else
-                        List.filter (\(h, rs, p) -> p >= n) model.world
-                        |> List.length
-                        |> toString
+                threshold = parseIntFromString input
+                housesWithPresents = getHousesWithPresents threshold model.world
             in
-                ({ model | numberOfPresentsThreshold = n, housesWithPresentsAboveThreshold = housesWithPresents }, Cmd.none)
+                ({ model | numberOfPresentsThreshold = threshold, housesWithPresentsAboveThreshold = housesWithPresents }, Cmd.none)
 
 -- SUBSCRIPTIONS
 subscriptions : Model -> Sub Msg
@@ -388,3 +379,19 @@ runSimulation model =
                     takeTurn world robots robot move rms
     in
         (robots, moves, updatedWorld, currentRobotHouses, [], totalPresents)
+
+getHousesWithPresents : Int -> World -> String
+getHousesWithPresents threshold world =
+    if threshold == 0 then
+        infinity
+    else
+        List.filter (\(h, rs, p) -> p >= threshold) world
+        |> List.length
+        |> toString
+
+getNumberOfRobots: String -> Int
+getNumberOfRobots input =
+    if parseIntFromString input > 0 then
+        parseIntFromString input
+    else
+        1
