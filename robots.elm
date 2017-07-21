@@ -118,12 +118,12 @@ update msg model =
             ({ initialModel | inputtedMoves = input, numberOfRobots = model.numberOfRobots }, Cmd.none)
         RunSimulation ->
             let 
-                (robots, moves, updatedWorld, currentRobotHouses, updatedRemainingMoves, totalPresents) = runSimulation model
+                (robots, moves, updatedWorld, currentRobotHouses, updatedRemainingMoves, totalPresents) = run model getSimulationRemainingMoves makeSimulationMove
             in 
                 ( { model | world = updatedWorld, robots = robots, moves = moves, currentRobotHouses = currentRobotHouses, remainingRobotMoves = updatedRemainingMoves, totalPresentsDelivered = totalPresents, numberOfPresentsThreshold = 0, housesWithPresentsAboveThreshold = infinity }, Cmd.none)
         Step ->
             let
-                (robots, moves, updatedWorld, currentRobotHouses, updatedRemainingMoves, totalPresents) = runStep model
+                (robots, moves, updatedWorld, currentRobotHouses, updatedRemainingMoves, totalPresents) = run model getStepRemainingMoves makeStepMove
             in
                 ( { model | world = updatedWorld, robots = robots, moves = moves, currentRobotHouses = currentRobotHouses, remainingRobotMoves = updatedRemainingMoves, totalPresentsDelivered = totalPresents, numberOfPresentsThreshold = 0, housesWithPresentsAboveThreshold = infinity }, Cmd.none)
         Threshold input ->
@@ -339,46 +339,55 @@ initializeSimulation numberOfRobots inputtedMoves =
     in
         (robots, moves, world, robotMoves)
 
-runStep : Model -> (Robots, Moves, World, RobotHouses, RobotMoves, Presents)
-runStep model =
-    let
-        (robots, moves, world, remainingMoves) = 
-            if List.isEmpty model.remainingRobotMoves then
-                initializeSimulation model.numberOfRobots model.inputtedMoves
-            else
-                (model.robots, model.moves, model.world, model.remainingRobotMoves)
-        
-        (updatedWorld, currentRobotHouses, updatedRemainingMoves, totalPresents) = 
-            case remainingMoves of
-                    [] ->
-                        (world, model.currentRobotHouses, [], model.totalPresentsDelivered)
-                    ((currentRobot, currentMove) :: nextRobotMove :: rms) ->
-                        let
-                            (uw, crps, tps) = takeTurn world robots currentRobot currentMove []
-                        in
-                            (uw, crps, nextRobotMove :: rms, tps)
-                    [(currentRobot, currentMove)] ->
-                        let
-                            (uw, crps, tps) = takeTurn world robots currentRobot currentMove []
-                        in
-                            (uw, crps, [], tps)
-    in
-        (robots, moves, updatedWorld, currentRobotHouses, updatedRemainingMoves, totalPresents)
+getStepRemainingMoves : Model -> (Robots, Moves, World, RobotMoves)
+getStepRemainingMoves model =
+    if List.isEmpty model.remainingRobotMoves then
+        initializeSimulation model.numberOfRobots model.inputtedMoves
+    else
+        (model.robots, model.moves, model.world, model.remainingRobotMoves)
 
-runSimulation : Model -> (Robots, Moves, World, RobotHouses, RobotMoves, Presents)
-runSimulation model =
-    let
-        (robots, moves, world, robotMoves) = 
-            initializeSimulation model.numberOfRobots model.inputtedMoves
-        
-        (updatedWorld, currentRobotHouses, totalPresents) = 
-            case robotMoves of
+getSimulationRemainingMoves : Model -> (Robots, Moves, World, RobotMoves)
+getSimulationRemainingMoves model =
+    initializeSimulation model.numberOfRobots model.inputtedMoves
+
+makeStepMove : Model -> World -> Robots -> RobotMoves -> (World, RobotHouses, RobotMoves, Presents)
+makeStepMove model world robots remainingMoves =
+    case remainingMoves of
+        [] ->
+            (world, model.currentRobotHouses, [], model.totalPresentsDelivered)
+        ((currentRobot, currentMove) :: nextRobotMove :: rms) ->
+            let
+                (uw, crhs, tps) = takeTurn world robots currentRobot currentMove []
+            in
+                (uw, crhs, nextRobotMove :: rms, tps)
+        [(robot, move)] ->
+            let
+                (uw, crhs, tps) = takeTurn world robots robot move []
+            in
+                (uw, crhs, [], tps)
+
+makeSimulationMove : Model -> World -> Robots -> RobotMoves -> (World, RobotHouses, RobotMoves, Presents)
+makeSimulationMove model world robots remainingMoves =
+    let 
+        (w, crhs, ps) =
+            case remainingMoves of
                 [] ->
                     (world, model.currentRobotHouses, model.totalPresentsDelivered)
                 ((robot, move) :: rms) ->
                     takeTurn world robots robot move rms
     in
-        (robots, moves, updatedWorld, currentRobotHouses, [], totalPresents)
+        (w, crhs, [], ps)
+
+run : Model -> (Model -> (Robots, Moves, World, RobotMoves)) -> (Model -> World -> Robots -> RobotMoves -> (World, RobotHouses, RobotMoves, Presents)) -> (Robots, Moves, World, RobotHouses, RobotMoves, Presents)
+run model getRemainingMoves makeMove =
+    let
+        (robots, moves, world, remainingMoves) = 
+            getRemainingMoves model
+        (updatedWorld, currentRobotHouses, updatedRemainingMoves, totalPresents) = 
+            makeMove model world robots remainingMoves
+    in
+        (robots, moves, updatedWorld, currentRobotHouses, updatedRemainingMoves, totalPresents)
+
 
 getHousesWithPresents : Int -> World -> String
 getHousesWithPresents threshold world =
